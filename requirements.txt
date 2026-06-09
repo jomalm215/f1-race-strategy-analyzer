@@ -1,0 +1,10 @@
+v0.1 requirements
+
+fastf1
+pandas
+numpy
+matplotlib
+seaborn
+jupyter
+
+tabulate
