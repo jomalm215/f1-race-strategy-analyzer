@@ -189,3 +189,146 @@ def rank_drivers_by_clean_pace(clean_laps: pd.DataFrame) -> pd.DataFrame:
     ranking["DeltaToFastestMedian"] = ranking["MedianLapTime"] - fastest_median
 
     return ranking
+
+# pit stop summary
+
+def summarize_pit_stops(clean_laps : pd.DataFrame) -> pd.DataFrame:
+
+    required_columns = [
+
+        "Driver",
+        "LapNumber",
+        "Stint",
+        "Compound",
+        "IsPitInLap",
+
+    ]
+
+    missing_columns = [col for col in required_columns if col not in clean_laps.columns]
+   
+    if missing_columns:
+            raise ValueError(f"Missing required columns: {missing_columns}")
+    
+    rows = []
+
+    for driver, driver_laps in clean_laps.groupby("Driver"):
+        driver_laps = driver_laps.sort_values("LapNumber").copy()
+
+        pit_in_laps = driver_laps[driver_laps["IsPitInLap"]].copy()
+
+        for _, pit_lap_row in pit_in_laps.iterrows():
+            pit_lap_number =  pit_lap_row["LapNumber"]
+
+            before_laps = driver_laps[driver_laps["LapNumber"] < pit_lap_number]
+            after_laps = driver_laps[driver_laps["LapNumber"] > pit_lap_number]
+
+            if before_laps.empty or after_laps.empty:
+                continue
+
+            lap_before = before_laps.iloc[-1]
+            lap_after = after_laps.iloc[0]
+
+            rows.append(
+                {
+                    "Driver": driver,
+                    "PitLap": pit_lap_number,
+                    "StintBefore": lap_before["Stint"],
+                    "StintAfter": lap_after["Stint"],
+                    "CompoundBefore": lap_before["Compound"],
+                    "CompoundAfter": lap_after["Compound"],
+                }
+            )
+
+    if not rows:
+        return pd.DataFrame(
+
+            columns=[
+
+                "Driver",
+                "PitLap",
+                "StintBefore",
+                "StintAfter",
+                "CompoundBefore",
+                "CompoundAfter",
+
+            ]
+        )
+
+    return pd.DataFrame(rows).sort_values(["Driver", "PitLap"]).reset_index(drop=True)
+
+def estimate_pit_loss(clean_laps: pd.DataFrame) -> pd.DataFrame:
+    """
+    Estimate pit stop loss for each detected pit-in lap.
+
+    Method:
+    - Find each pit-in lap.
+    - Compare that pit lap time against the driver's nearby clean racing pace.
+    - Nearby pace is estimated using the median of clean laps within +/- 3 laps.
+
+    This is a rough estimate, not an official pit loss calculation.
+    """
+
+    required_columns = [
+        "Driver",
+        "LapNumber",
+        "LapTimeSeconds",
+        "IsPitInLap",
+        "IsPitLap",
+        "IsExtremeSlowLap",
+    ]
+
+    missing_columns = [col for col in required_columns if col not in clean_laps.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns: {missing_columns}")
+
+    rows = []
+
+    for driver, driver_laps in clean_laps.groupby("Driver"):
+        driver_laps = driver_laps.sort_values("LapNumber").copy()
+        pit_laps = driver_laps[driver_laps["IsPitInLap"]].copy()
+
+        for _, pit_row in pit_laps.iterrows():
+            pit_lap_number = pit_row["LapNumber"]
+            pit_lap_time = pit_row["LapTimeSeconds"]
+
+            nearby_clean_laps = driver_laps[
+                (driver_laps["LapNumber"] >= pit_lap_number - 3)
+                & (driver_laps["LapNumber"] <= pit_lap_number + 3)
+                & (~driver_laps["IsPitLap"])
+                & (~driver_laps["IsExtremeSlowLap"])
+                & (driver_laps["LapTimeSeconds"].notna())
+            ].copy()
+
+            if nearby_clean_laps.empty:
+                reference_lap_time = driver_laps[
+                    (~driver_laps["IsPitLap"])
+                    & (~driver_laps["IsExtremeSlowLap"])
+                    & (driver_laps["LapTimeSeconds"].notna())
+                ]["LapTimeSeconds"].median()
+            else:
+                reference_lap_time = nearby_clean_laps["LapTimeSeconds"].median()
+
+            estimated_pit_loss = pit_lap_time - reference_lap_time
+
+            rows.append(
+                {
+                    "Driver": driver,
+                    "PitLap": pit_lap_number,
+                    "PitLapTime": pit_lap_time,
+                    "ReferenceLapTime": reference_lap_time,
+                    "EstimatedPitLoss": estimated_pit_loss,
+                }
+            )
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "Driver",
+                "PitLap",
+                "PitLapTime",
+                "ReferenceLapTime",
+                "EstimatedPitLoss",
+            ]
+        )
+
+    return pd.DataFrame(rows).sort_values(["Driver", "PitLap"]).reset_index(drop=True)

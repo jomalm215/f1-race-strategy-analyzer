@@ -1,4 +1,5 @@
-# GPT 5.5-gen, b/c who wants all this info in the terminal
+# mostly GPT 5.5-gen, b/c who wants all this info in the terminal
+## also this is report work...
 
 from pathlib import Path
 
@@ -57,10 +58,13 @@ def generate_markdown_report(
     session_type: str,
     drivers: list[str],
     plot_path: Path,
+    compound_plot_path: Path,
     stint_summary: pd.DataFrame,
     degradation: pd.DataFrame,
     comparison: pd.DataFrame,
     driver_ranking: pd.DataFrame,
+    pit_stop_summary: pd.DataFrame,
+    pit_loss_summary: pd.DataFrame,
 ) -> Path:
     """
     Generate a clean Markdown strategy report.
@@ -73,9 +77,18 @@ def generate_markdown_report(
     prefix = make_safe_filename(f"{year}_{race}")
     report_path = REPORTS_DIR / f"{prefix}_strategy_report.md"
 
+    lap_plot_relative_path = Path("../../") / plot_path
+    compound_plot_relative_path = Path("../../") / compound_plot_path
+
+    lap_plot_markdown_path = lap_plot_relative_path.as_posix()
+    compound_plot_markdown_path = compound_plot_relative_path.as_posix()
+
     selected_stints = stint_summary[stint_summary["Driver"].isin(drivers)].copy()
     selected_degradation = degradation[degradation["Driver"].isin(drivers)].copy()
-
+    selected_ranking = driver_ranking[driver_ranking["Driver"].isin(drivers)].copy()
+    selected_pit_stops = pit_stop_summary[pit_stop_summary["Driver"].isin(drivers)].copy()
+    selected_pit_loss = pit_loss_summary[pit_loss_summary["Driver"].isin(drivers)].copy()
+    
     with report_path.open("w", encoding="utf-8") as file:
         file.write(f"# {year} {race} Strategy Analysis\n\n")
 
@@ -86,8 +99,15 @@ def generate_markdown_report(
         file.write(f"- Drivers analyzed: {', '.join(drivers)}\n\n")
 
         file.write("## Lap Time Plot\n\n")
-        file.write(f"![Lap time plot](../{plot_path.as_posix()})\n\n")
+        file.write(f"![Lap time plot](../../{plot_path.as_posix()})\n\n")
 
+        file.write("## Compound Stint Plot\n\n")
+        file.write(
+            "This plot shows selected drivers' clean lap times with points colored by tyre compound. "
+            "It helps connect lap-time trends to stint strategy.\n\n"
+        )
+        file.write(f"![Compound stint plot](../../{compound_plot_path.as_posix()})\n\n")
+       
         file.write("## Clean Pace Ranking\n\n")
         file.write(
             "This ranks drivers by median clean lap time after removing pit laps "
@@ -101,6 +121,31 @@ def generate_markdown_report(
             file.write("No driver ranking data available.\n\n")
         else:
             file.write(selected_ranking.to_markdown(index=False))
+            file.write("\n\n")
+
+        file.write("## Pit Stop Summary\n\n")
+        file.write(
+            "This table summarizes detected pit stops using pit-in laps. "
+            "It shows the lap where each driver pitted and the compound change before and after the stop.\n\n"
+        )
+
+        if selected_pit_stops.empty:
+            file.write("No pit stop data available for selected drivers.\n\n")
+        else:
+            file.write(selected_pit_stops.to_markdown(index=False))
+            file.write("\n\n")
+        
+        file.write("## Pit Loss Estimate\n\n")
+        file.write(
+            "This table estimates rough pit loss by comparing each pit-in lap time "
+            "against nearby clean racing laps. It is an approximation and can be affected "
+            "by traffic, out-lap behavior, tyre warmup, and race conditions.\n\n"
+        )
+
+        if selected_pit_loss.empty:
+            file.write("No pit loss data available for selected drivers.\n\n")
+        else:
+            file.write(selected_pit_loss.to_markdown(index=False))
             file.write("\n\n")
 
         file.write("## Head-to-Head Driver Comparison\n\n")
