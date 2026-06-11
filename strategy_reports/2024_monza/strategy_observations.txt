@@ -1,0 +1,7 @@
+- PIA had the fastest selected-driver clean median race pace at 83.480 seconds.
+- LEC completed the longest selected-driver stint: 37 laps on HARD from lap 17 to lap 53.
+- Most detected pit stops among selected drivers: NOR, PIA with 2 stop(s).
+- Detected one-stop drivers among the selected group: LEC, SAI.
+- Lowest rough pit-loss estimate among selected drivers: NOR on lap 32, approximately 4.114 seconds.
+- Most stable raw pace slope among selected stints: SAI stint 2 on HARD at 0.0039 sec/lap.
+- Note: these observations are based on cleaned lap-time data and should be treated as strategy indicators, not final proof.

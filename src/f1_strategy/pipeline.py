@@ -4,6 +4,7 @@ from f1_strategy.analysis import (
     compare_drivers,
     estimate_pit_loss,
     estimate_stint_degradation,
+    generate_strategy_observations,
     rank_drivers_by_clean_pace,
     summarize_pit_stops,
     summarize_stints,
@@ -48,6 +49,14 @@ def run_race_analysis(
     driver_ranking = rank_drivers_by_clean_pace(clean_laps)
     pit_stop_summary = summarize_pit_stops(clean_laps)
     pit_loss_summary = estimate_pit_loss(clean_laps)
+    strategy_observations = generate_strategy_observations(
+        stint_summary=stint_summary,
+        degradation=degradation,
+        driver_ranking=driver_ranking,
+        pit_stop_summary=pit_stop_summary,
+        pit_loss_summary=pit_loss_summary,
+        drivers=drivers,
+    )
 
     selected_stints = stint_summary[stint_summary["Driver"].isin(drivers)]
     selected_degradation = degradation[degradation["Driver"].isin(drivers)]
@@ -87,6 +96,11 @@ def run_race_analysis(
     pit_loss_path = report_folder / "pit_loss_summary.csv"
     selected_pit_loss.to_csv(pit_loss_path, index=False)
 
+    observations_path = report_folder / "strategy_observations.txt"
+    with observations_path.open("w", encoding="utf-8") as file:
+        for observation in strategy_observations:
+            file.write(f"- {observation}\n")
+
     report_path = generate_markdown_report(
         year=year,
         race=race,
@@ -117,5 +131,8 @@ def run_race_analysis(
         "ranking_path": ranking_path,
         "pit_stop_path": pit_stop_path,
         "pit_loss_path": pit_loss_path,
+        "observations_path": observations_path,
         "report_path": report_path,
+        "strategy_observations": strategy_observations,
+        
     }

@@ -332,3 +332,102 @@ def estimate_pit_loss(clean_laps: pd.DataFrame) -> pd.DataFrame:
         )
 
     return pd.DataFrame(rows).sort_values(["Driver", "PitLap"]).reset_index(drop=True)
+
+
+# improve readability, summary of analysis for the streamlit dashboad and insights
+def generate_strategy_observations(
+        
+    stint_summary: pd.DataFrame,
+    degradation : pd.DataFrame,
+    driver_ranking: pd.DataFrame,
+    pit_stop_summary: pd.DataFrame,
+    pit_loss_summary: pd.DataFrame,
+    drivers : list[str],
+) -> list[str]:
+    
+    observations: list[str] = []
+    selected_stints = stint_summary[stint_summary["Driver"].isin(drivers)].copy()
+    selected_degradation = degradation[degradation["Driver"].isin(drivers)].copy()
+    selected_ranking = driver_ranking[driver_ranking["Driver"].isin(drivers)].copy()
+    selected_pit_stops = pit_stop_summary[pit_stop_summary["Driver"].isin(drivers)].copy()
+    selected_pit_loss = pit_loss_summary[pit_loss_summary["Driver"].isin(drivers)].copy()
+
+    # 1. Fastest clean median pace among selected drivers.
+    if not selected_ranking.empty and "MedianLapTime" in selected_ranking.columns:
+        fastest_row = selected_ranking.sort_values("MedianLapTime").iloc[0]
+        observations.append(
+            f"{fastest_row['Driver']} had the fastest selected-driver clean median race pace "
+            f"at {fastest_row['MedianLapTime']:.3f} seconds."
+        )
+
+    # 2. Longest stint among selected drivers.
+    if not selected_stints.empty and "StintLength" in selected_stints.columns:
+        longest_stint = selected_stints.sort_values("StintLength", ascending=False).iloc[0]
+        observations.append(
+            f"{longest_stint['Driver']} completed the longest selected-driver stint: "
+            f"{int(longest_stint['StintLength'])} laps on {longest_stint['Compound']} "
+            f"from lap {int(longest_stint['StartLap'])} to lap {int(longest_stint['EndLap'])}."
+        )
+
+    # 3. Pit stop count by driver.
+    if not selected_pit_stops.empty:
+        pit_counts = (
+            selected_pit_stops.groupby("Driver")
+            .size()
+            .reset_index(name="PitStopCount")
+            .sort_values("PitStopCount", ascending=False)
+        )
+
+        max_stops = pit_counts["PitStopCount"].max()
+        most_stops = pit_counts[pit_counts["PitStopCount"] == max_stops]["Driver"].tolist()
+
+        observations.append(
+            f"Most detected pit stops among selected drivers: {', '.join(most_stops)} "
+            f"with {int(max_stops)} stop(s)."
+        )
+
+        one_stop_drivers = pit_counts[pit_counts["PitStopCount"] == 1]["Driver"].tolist()
+        if one_stop_drivers:
+            observations.append(
+                f"Detected one-stop drivers among the selected group: {', '.join(one_stop_drivers)}."
+            )
+
+    # 4. Lowest estimated pit loss.
+    if not selected_pit_loss.empty and "EstimatedPitLoss" in selected_pit_loss.columns:
+        valid_pit_loss = selected_pit_loss[selected_pit_loss["EstimatedPitLoss"].notna()].copy()
+
+        if not valid_pit_loss.empty:
+            lowest_loss = valid_pit_loss.sort_values("EstimatedPitLoss").iloc[0]
+            observations.append(
+                f"Lowest rough pit-loss estimate among selected drivers: {lowest_loss['Driver']} "
+                f"on lap {int(lowest_loss['PitLap'])}, approximately "
+                f"{lowest_loss['EstimatedPitLoss']:.3f} seconds."
+            )
+
+    # 5. Most stable stint by raw pace slope.
+    if (
+        not selected_degradation.empty
+        and "DegradationSecondsPerLap" in selected_degradation.columns
+    ):
+        stable = selected_degradation.copy()
+        stable["AbsSlope"] = stable["DegradationSecondsPerLap"].abs()
+        stable = stable.sort_values("AbsSlope")
+
+        most_stable = stable.iloc[0]
+        observations.append(
+            f"Most stable raw pace slope among selected stints: {most_stable['Driver']} "
+            f"stint {int(most_stable['Stint'])} on {most_stable['Compound']} "
+            f"at {most_stable['DegradationSecondsPerLap']:.4f} sec/lap."
+        )
+
+    # Fallback if no observations were generated.
+    if not observations:
+        observations.append(
+            "No automatic observations were generated. Check the input drivers and available race data."
+        )
+
+    observations.append(
+        "Note: these observations are based on cleaned lap-time data and should be treated as strategy indicators, not final proof."
+    )
+
+    return observations

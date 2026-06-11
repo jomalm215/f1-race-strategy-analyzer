@@ -1,0 +1,7 @@
+Driver,PitLap,StintBefore,StintAfter,CompoundBefore,CompoundAfter
+HAM,14.0,1.0,2.0,MEDIUM,HARD
+STR,21.0,1.0,2.0,MEDIUM,HARD
+STR,52.0,2.0,3.0,HARD,SOFT
+VER,13.0,1.0,2.0,SOFT,HARD
+VER,36.0,2.0,3.0,HARD,HARD
+VER,53.0,3.0,4.0,HARD,SOFT

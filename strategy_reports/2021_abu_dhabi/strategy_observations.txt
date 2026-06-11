@@ -1,0 +1,7 @@
+- HAM had the fastest selected-driver clean median race pace at 87.889 seconds.
+- HAM completed the longest selected-driver stint: 43 laps on HARD from lap 16 to lap 58.
+- Most detected pit stops among selected drivers: VER with 3 stop(s).
+- Detected one-stop drivers among the selected group: HAM.
+- Lowest rough pit-loss estimate among selected drivers: HAM on lap 14, approximately 2.119 seconds.
+- Most stable raw pace slope among selected stints: HAM stint 2 on HARD at 0.0001 sec/lap.
+- Note: these observations are based on cleaned lap-time data and should be treated as strategy indicators, not final proof.
